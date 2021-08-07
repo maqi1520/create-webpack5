@@ -14,3 +14,14 @@ yarn global add create-webpack5
 # now you don't have to prefix this command with npx!
 create-webpack5
 ```
+
+yarn create or npm init
+
+```bash
+yarn create webpack5
+
+# or
+npm init webpack5
+```
+
+

@@ -20,10 +20,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/maqi1520/webpack.config.js.git"
+    "url": "git+https://github.com/maqi1520/create-webpack5.git"
   },
   "bugs": {
-    "url": "https://github.com/maqi1520/webpack.config.js/issues"
+    "url": "https://github.com/maqi1520/create-webpack5/issues"
   },
   "publishConfig": {
     "access": "public",
@@ -31,7 +31,7 @@
       "master"
     ]
   },
-  "homepage": "https://github.com/maqi1520/webpack.config.js#readme",
+  "homepage": "https://github.com/maqi1520/create-webpack5#readme",
   "devDependencies": {
     "semantic-release": "^17.4.4"
   }
