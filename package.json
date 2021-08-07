@@ -1,5 +1,5 @@
 {
-  "name": "webpack.config.js",
+  "name": "create-webpack5",
   "version": "0.1.0",
   "description": "Quickly create an opinionated webpack.config.js",
   "main": "src/index.js",
@@ -10,7 +10,8 @@
   },
   "keywords": [
     "webpack.config.js",
-    "webpack config"
+    "webpack config",
+    "create webpack config"
   ],
   "author": "maqibin",
   "license": "MIT",

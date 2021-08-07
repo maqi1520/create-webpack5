@@ -1,16 +1,16 @@
-# webpack.config.js
+# create-webpack5
 
 ## Usage
 
 Install as a dev dependency on a particular project:
 ```
-yarn add -D webpack.config.js
-npx webpack.config.js
+yarn add -D create-webpack5
+npx create-webpack5
 ```
 
 Install globally:
 ```bash
-yarn global add webpack.config.js
+yarn global add create-webpack5
 # now you don't have to prefix this command with npx!
-webpack.config.js
+create-webpack5
 ```
