@@ -2,10 +2,18 @@
   "name": "create-webpack5",
   "version": "0.1.0",
   "description": "Quickly create an opinionated webpack.config.js",
-  "main": "src/index.js",
-  "bin": "src/index.js",
+  "main": "lib/index.js",
+  "bin": "lib/index.js",
+  "files": [
+    "lib",
+    "tpl"
+  ],
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node ./lib/index.js",
+    "test": "jest",
+    "dev": "babel src --out-dir lib  --extensions .js,.ejs --watch --source-maps",
+    "build": "npm run clean && babel src --out-dir lib",
+    "clean": "rimraf lib",
     "semantic-release": "semantic-release"
   },
   "keywords": [
@@ -16,7 +24,12 @@
   "author": "maqibin",
   "license": "MIT",
   "dependencies": {
-    "inquirer": "^6.3.1"
+    "chalk": "^4.1.2",
+    "cross-spawn": "^7.0.3",
+    "diff": "^5.0.0",
+    "ejs": "^3.1.6",
+    "inquirer": "^6.3.1",
+    "lodash": "^4.17.21"
   },
   "repository": {
     "type": "git",
@@ -33,6 +46,13 @@
   },
   "homepage": "https://github.com/maqi1520/create-webpack5#readme",
   "devDependencies": {
+    "@babel/cli": "^7.14.8",
+    "@babel/core": "^7.15.0",
+    "@babel/preset-env": "^7.15.0",
+    "babel-jest": "^27.0.6",
+    "eslint": "^7.32.0",
+    "eslint-plugin-jest": "^24.4.0",
+    "jest": "^27.0.6",
     "semantic-release": "^17.4.4"
   }
 }
