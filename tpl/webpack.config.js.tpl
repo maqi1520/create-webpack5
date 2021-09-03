@@ -23,11 +23,12 @@ const config = {
     },<% if (devServer) { %>
     devServer: {
         open: true,
+        compress: true,
         host: 'localhost',
     },<% } %>
     plugins: [<% if (htmlWebpackPlugin) { %>
         new HtmlWebpackPlugin({
-            template: 'index.html',
+            template: 'public/index.html',
         }),
 <% } %><% if (extractPlugin === "Yes") { %>
         new MiniCssExtractPlugin(),
@@ -49,15 +50,15 @@ const config = {
             {
                 test: /\.css$/i,
                 use: [stylesHandler,'css-loader'],
-            },<% } %><%  if (cssType == 'SASS') { %>
+            },<% } %><%  if (cssType == 'sass') { %>
             {
                 test: /\.s[ac]ss$/i,
                 use: [stylesHandler, 'css-loader', <% if (isPostCSS) { %>'postcss-loader', <% } %>'sass-loader'],
-            },<% } %><%  if (cssType == 'LESS') { %>
+            },<% } %><%  if (cssType == 'less') { %>
             {
                 test: /\.less$/i,
                 use: [<% if (isPostCSS) { %>stylesHandler, 'css-loader', 'postcss-loader', <% } %>'less-loader'],
-            },<% } %><%  if (cssType == 'Stylus') { %>
+            },<% } %><%  if (cssType == 'stylus') { %>
             {
                 test: /\.styl$/i,
                 use: [<% if (isPostCSS) { %>stylesHandler, 'css-loader', 'postcss-loader', <% } %>'stylus-loader'],

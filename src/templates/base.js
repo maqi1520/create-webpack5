@@ -1,3 +1,8 @@
+import _ from "lodash";
+
+export const joinToString = (list) =>
+  _.reduce(list, (all, i) => `${all + i}\n`, "");
+
 export const packageJson = {
   version: "1.0.0",
   description: "",

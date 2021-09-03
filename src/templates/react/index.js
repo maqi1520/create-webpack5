@@ -1,4 +1,5 @@
 import _ from "lodash";
+import { joinToString } from "../base";
 
 const tailwindcssClass = ' className="text-4xl text-white bg-black"';
 
@@ -43,11 +44,12 @@ export default ${isHot ? "hot(App)" : "App"};
 `;
 };
 
-export const reactIndexJs = () => `import React from "react";
+export const reactIndexJs = (extraImports) => `import React from "react";
 import ReactDOM from "react-dom";
 import App from "./App";
+${joinToString(extraImports)}
 
-var mountNode = document.getElementById("app");
+var mountNode = document.getElementById("root");
 ReactDOM.render(<App name="Jane" />, mountNode);`;
 
 export const reactAppTsx = (configItems) => {
@@ -96,11 +98,12 @@ export default ${isHot ? "hot(App)" : "App"};
 `;
 };
 
-export const reactIndexTsx = () => `import * as React from 'react';
+export const reactIndexTsx = (extraImports) => `import * as React from 'react';
 import * as ReactDOM from "react-dom";
+${joinToString(extraImports)}
 
 import App from './App';
 
-var mountNode = document.getElementById("app");
+var mountNode = document.getElementById("root");
 ReactDOM.render(<App name="Jane" />, mountNode);
 `;

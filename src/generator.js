@@ -1,16 +1,20 @@
 import chalk from "chalk";
 import ejs from "ejs";
-import fs from "fs";
+import fs from "fs-extra";
 import path from "path";
 import { gitignore, packageJson, readmeFile } from "./templates/base";
+import { emptyIndexJs } from "./templates/empty";
 import { reactAppJs, reactIndexJs } from "./templates/react";
 import { css, less, scss, stylus, tailwindcss } from "./templates/styling";
 import { svelteAppSvelte, svelteIndexJs } from "./templates/svelte";
 import { vueIndexAppVue, vueIndexTs } from "./templates/vue";
-import { install } from "./util";
+const spawn = require("cross-spawn");
 
 const createHtml = (answers) => {
-  const str = fs.readFileSync("./tpl/index.html.tpl", "utf8");
+  const str = fs.readFileSync(
+    path.resolve(__dirname, "../tpl/index.html.tpl"),
+    "utf8"
+  );
   const ret = ejs.render(str, {
     workboxWebpackPlugin: answers.plugins.includes("workboxWebpackPlugin"),
   });
@@ -18,10 +22,16 @@ const createHtml = (answers) => {
 };
 
 const createPackageJson = (answers) => {
-  let devDependencies = ["webpack", "webpack-cli"];
+  let devDependencies = [
+    "webpack",
+    "webpack-cli",
+    "html-webpack-plugin",
+    "webpack-dev-server",
+    "mini-css-extract-plugin",
+  ];
   let dependencies = [];
 
-  const { technology, langType, devServer, plugins, styling } = answers;
+  const { technology, langType, plugins, styling, cssPreprocessor } = answers;
 
   switch (technology) {
     case "react":
@@ -52,9 +62,6 @@ const createPackageJson = (answers) => {
       }
       break;
   }
-  if (devServer) {
-    devDependencies.push("webpack-dev-server");
-  }
   if (plugins.includes("htmlWebpackPlugin")) {
     devDependencies.push("html-webpack-plugin");
   }
@@ -63,40 +70,45 @@ const createPackageJson = (answers) => {
     devDependencies.push("workbox-webpack-plugin");
   }
 
-  if (styling.length > 0 && plugins.includes("workboxWebpackPlugin")) {
+  if (styling.length > 0) {
     devDependencies.push("mini-css-extract-plugin");
   }
 
-  if (styling.includes("sass")) {
+  if (cssPreprocessor == "sass") {
     dependencies.push("sass-loader", "sass");
   }
 
-  if (styling.includes("less")) {
+  if (cssPreprocessor == "less") {
     dependencies.push("less-loader", "less");
   }
 
-  if (styling.includes("stylus")) {
+  if (cssPreprocessor == "stylus") {
     dependencies.push("stylus-loader", "stylus");
   }
 
   if (styling.includes("css")) {
-    devDependencies.push("style-loader", "css-loader");
-  }
-
-  if (styling.includes("postcss")) {
-    devDependencies.push("postcss-loader", "postcss", "autoprefixer");
+    devDependencies.push(
+      "style-loader",
+      "css-loader",
+      "postcss-loader",
+      "postcss",
+      "autoprefixer"
+    );
   }
 
   return {
-    file: { name: answers.name, ...packageJson },
-    devDependencies,
-    dependencies,
+    file: JSON.stringify({ name: answers.name, ...packageJson }, null, 2),
+    devDependencies: devDependencies.sort(),
+    dependencies: dependencies.sort(),
   };
 };
 const createWebpackConfig = (answers) => {
-  const str = fs.readFileSync("./tpl/webpack.config.js.tpl", "utf8");
+  const str = fs.readFileSync(
+    path.resolve(__dirname, "../tpl/webpack.config.js.tpl"),
+    "utf8"
+  );
 
-  const { langType, styling, plugins } = answers;
+  const { langType, styling, cssPreprocessor, plugins } = answers;
   let extension = "js";
   if (langType === "Typescript") {
     extension = "ts";
@@ -106,12 +118,12 @@ const createWebpackConfig = (answers) => {
     entry: `./src/index.${extension}`,
     isCSS: styling.includes("css"),
     devServer: true,
-    htmlWebpackPlugin: plugins.includes("htmlWebpackPlugin"),
+    htmlWebpackPlugin: true,
     extractPlugin: "Only for Production",
     workboxWebpackPlugin: plugins.includes("workboxWebpackPlugin"),
-    langType: "Typescript",
-    isPostCSS: styling.includes("postcss"),
-    cssType: "LESS",
+    langType: langType,
+    isPostCSS: true,
+    cssType: cssPreprocessor,
   });
   return ret;
 };
@@ -134,19 +146,19 @@ const createStyling = (answers) => {
       }
   }
 };
-const createIndex = (answers) => {
+const createIndex = (answers, stylingExtension) => {
   const { technology } = answers;
+
   switch (technology) {
     case "react":
-      return reactIndexJs();
+      return reactIndexJs([`import "./index.${stylingExtension}"`]);
     case "vue":
       return vueIndexTs();
     case "svelte":
       return svelteIndexJs();
     default:
-      break;
+      return emptyIndexJs([`import "./index.${stylingExtension}"`]);
   }
-  return null;
 };
 
 const createApp = (answers) => {
@@ -165,7 +177,10 @@ const createApp = (answers) => {
 };
 
 const createBabelConfig = (answers) => {
-  const str = fs.readFileSync("./tpl/babel.config.js.tpl", "utf8");
+  const str = fs.readFileSync(
+    path.resolve(__dirname, "../tpl/babel.config.js.tpl"),
+    "utf8"
+  );
   const ret = ejs.render(str, {
     isReact: answers.technology === "react",
   });
@@ -173,7 +188,10 @@ const createBabelConfig = (answers) => {
 };
 
 const createPostcssConfig = (answers) => {
-  const str = fs.readFileSync("./tpl/postcss.config.js.tpl", "utf8");
+  const str = fs.readFileSync(
+    path.resolve(__dirname, "../tpl/postcss.config.js.tpl"),
+    "utf8"
+  );
   const ret = ejs.render(str, {
     isTailwind: answers.styling.includes("tailwind css"),
   });
@@ -211,11 +229,11 @@ export const generator = async (answers) => {
   const newBabelConfig = createBabelConfig(answers);
   const newPostcssConfig = createPostcssConfig(answers);
   const newStyling = createStyling(answers);
-  const newIndex = createIndex(answers, styleFile);
+  const newIndex = createIndex(answers, stylingExtension);
   const newApp = createApp(answers);
 
   const fileMap = {
-    "index.html": indexHtml,
+    "public/index.html": indexHtml,
     "webpack.config.js": newWebpackConfig,
     "README.md": readmeFile(answers.name),
     ".gitignore": gitignore(),
@@ -228,33 +246,39 @@ export const generator = async (answers) => {
   };
 
   Object.keys(fileMap).forEach((file) => {
-    fs.writeFileSync(file, fileMap[file]);
+    if (fileMap[file]) {
+      fs.outputFileSync(
+        path.resolve(process.cwd() + "/" + file),
+        fileMap[file]
+      );
+    }
   });
 
-  install(path.resolve("./"), true, false, dependencies).then(() => {
-    console.log(chalk.green("dependencies install success."));
+  const devChild = spawn("yarn", ["add", "-D", ...devDependencies], {
+    stdio: "inherit",
+  });
+  devChild.on("close", (code) => {
+    if (code !== 0) {
+      console.log(chalk.yellow(`${dependencies.join(" ")} install cancel.`));
+      return;
+    }
+
+    console.log(chalk.green(`${devDependencies.join(" ")} install success.`));
     console.log();
-    install(path.resolve("./"), true, true, devDependencies).then(() => {
-      console.log(chalk.green("devDependencies install success."));
-      console.log();
-    });
+    if (dependencies.length > 0) {
+      const child = spawn("yarn", ["add", ...dependencies], {
+        stdio: "inherit",
+      });
+      child.on("close", (code) => {
+        if (code !== 0) {
+          console.log(
+            chalk.yellow(`${dependencies.join(" ")} install cancel.`)
+          );
+          return;
+        }
+        console.log(chalk.green(`${dependencies.join(" ")} install success.`));
+        console.log();
+      });
+    }
   });
-
-  console.log(fileMap);
 };
-
-// const a = {
-//   name: "test-webpack",
-//   technology: "react",
-//   UI: [],
-//   styling: ["css", "css modules"],
-//   cssPreprocessor: "less",
-//   optimization: ["code split vendors", "code split commons"],
-//   plugins: [
-//     "html webpack plugin",
-//     "copy webpack plugin",
-//     "clean webpack plugin",
-//     "webpack bundle analyzer",
-//   ],
-//   linting: ["eslint", "prettier"],
-// };
