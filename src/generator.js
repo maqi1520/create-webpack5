@@ -11,6 +11,9 @@ import { vueIndexAppVue, vueIndexTs } from "./templates/vue";
 const spawn = require("cross-spawn");
 
 const createHtml = (answers) => {
+  if (answers.technology == "no") {
+    return "";
+  }
   const str = fs.readFileSync(
     path.resolve(__dirname, "../tpl/index.html.tpl"),
     "utf8"
@@ -22,13 +25,7 @@ const createHtml = (answers) => {
 };
 
 const createPackageJson = (answers) => {
-  let devDependencies = [
-    "webpack",
-    "webpack-cli",
-    "html-webpack-plugin",
-    "webpack-dev-server",
-    "mini-css-extract-plugin",
-  ];
+  let devDependencies = ["webpack", "webpack-cli"];
   let dependencies = [];
 
   const { technology, langType, plugins, styling, cssPreprocessor } = answers;
@@ -36,16 +33,19 @@ const createPackageJson = (answers) => {
   switch (technology) {
     case "react":
       dependencies.push("react", "react-dom");
-
+      devDependencies.push("html-webpack-plugin", "webpack-dev-server");
       break;
-
     case "vue":
       dependencies.push("vue");
       devDependencies.push("vue-loader");
+      devDependencies.push("html-webpack-plugin", "webpack-dev-server");
       break;
     case "svelte":
       devDependencies.push("svelte", "svelte-loader", "velte-preprocess");
+      devDependencies.push("html-webpack-plugin", "webpack-dev-server");
       break;
+    default:
+      packageJson.scripts.dev = undefined;
   }
 
   switch (langType) {
@@ -92,7 +92,8 @@ const createPackageJson = (answers) => {
       "css-loader",
       "postcss-loader",
       "postcss",
-      "autoprefixer"
+      "autoprefixer",
+      "mini-css-extract-plugin"
     );
   }
 
@@ -108,7 +109,7 @@ const createWebpackConfig = (answers) => {
     "utf8"
   );
 
-  const { langType, styling, cssPreprocessor, plugins } = answers;
+  const { langType, styling, cssPreprocessor, plugins, technology } = answers;
   let extension = "js";
   if (langType === "Typescript") {
     extension = "ts";
@@ -117,9 +118,9 @@ const createWebpackConfig = (answers) => {
   const ret = ejs.render(str, {
     entry: `./src/index.${extension}`,
     isCSS: styling.includes("css"),
-    devServer: true,
-    htmlWebpackPlugin: true,
-    extractPlugin: "Only for Production",
+    devServer: technology !== "no",
+    htmlWebpackPlugin: technology !== "no",
+    extractPlugin: technology !== "no" ? "Only for Production" : "No",
     workboxWebpackPlugin: plugins.includes("workboxWebpackPlugin"),
     langType: langType,
     isPostCSS: true,
@@ -139,25 +140,32 @@ const createStyling = (answers) => {
     case "stylus":
       return stylus;
     default:
-      if (styling.includes("tailwind css")) {
-        return tailwindcss();
-      } else {
-        return css;
+      if (styling.length > 0) {
+        if (styling.includes("tailwind css")) {
+          return tailwindcss();
+        } else {
+          return css;
+        }
       }
+      return "";
   }
 };
 const createIndex = (answers, stylingExtension) => {
   const { technology } = answers;
 
+  const extraImports = stylingExtension
+    ? [`import "./index.${stylingExtension}"`]
+    : [];
+
   switch (technology) {
     case "react":
-      return reactIndexJs([`import "./index.${stylingExtension}"`]);
+      return reactIndexJs(extraImports);
     case "vue":
       return vueIndexTs();
     case "svelte":
       return svelteIndexJs();
     default:
-      return emptyIndexJs([`import "./index.${stylingExtension}"`]);
+      return emptyIndexJs(extraImports);
   }
 };
 
@@ -212,6 +220,9 @@ export const generator = async (answers) => {
       break;
     case "stylus":
       stylingExtension = "styl";
+      break;
+    case "none":
+      stylingExtension = "";
       break;
     default:
       break;

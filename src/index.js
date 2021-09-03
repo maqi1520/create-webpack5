@@ -49,6 +49,10 @@ const notice = "PostCSS, Autoprefixer and CSS Modules are supported by default";
       description: `${notice}.`,
       choices: [
         {
+          name: "None",
+          value: "none",
+        },
+        {
           name: "Sass/SCSS (with dart-sass)",
           value: "dart-sass",
         },
