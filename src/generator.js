@@ -8,6 +8,7 @@ import { reactAppJs, reactIndexJs } from "./templates/react";
 import { css, less, scss, stylus, tailwindcss } from "./templates/styling";
 import { svelteAppSvelte, svelteIndexJs } from "./templates/svelte";
 import { vueIndexAppVue, vueIndexTs } from "./templates/vue";
+import { getStyleTags } from "./templates/styling";
 const spawn = require("cross-spawn");
 
 const createHtml = (answers) => {
@@ -28,21 +29,34 @@ const createPackageJson = (answers) => {
   let devDependencies = ["webpack", "webpack-cli"];
   let dependencies = [];
 
-  const { technology, langType, plugins, styling, cssPreprocessor } = answers;
+  const { technology, langType, plugins, styling, cssPreprocessor, linting } =
+    answers;
 
   switch (technology) {
     case "react":
       dependencies.push("react", "react-dom");
-      devDependencies.push("html-webpack-plugin", "webpack-dev-server");
+      devDependencies.push(
+        "html-webpack-plugin",
+        "copy-webpack-plugin",
+        "webpack-dev-server"
+      );
       break;
     case "vue":
       dependencies.push("vue");
-      devDependencies.push("vue-loader");
-      devDependencies.push("html-webpack-plugin", "webpack-dev-server");
+      devDependencies.push("vue-loader", "vue-template-compiler");
+      devDependencies.push(
+        "html-webpack-plugin",
+        "copy-webpack-plugin",
+        "webpack-dev-server"
+      );
       break;
     case "svelte":
-      devDependencies.push("svelte", "svelte-loader", "velte-preprocess");
-      devDependencies.push("html-webpack-plugin", "webpack-dev-server");
+      devDependencies.push("svelte", "svelte-loader", "svelte-preprocess");
+      devDependencies.push(
+        "html-webpack-plugin",
+        "copy-webpack-plugin",
+        "webpack-dev-server"
+      );
       break;
     default:
       packageJson.scripts.dev = undefined;
@@ -62,8 +76,8 @@ const createPackageJson = (answers) => {
       }
       break;
   }
-  if (plugins.includes("htmlWebpackPlugin")) {
-    devDependencies.push("html-webpack-plugin");
+  if (plugins.includes("webpackBundleAnalyzer")) {
+    devDependencies.push("webpack-bundle-analyzer");
   }
 
   if (plugins.includes("workboxWebpackPlugin")) {
@@ -74,16 +88,20 @@ const createPackageJson = (answers) => {
     devDependencies.push("mini-css-extract-plugin");
   }
 
+  if (styling.includes("tailwind css")) {
+    dependencies.push("tailwindcss");
+  }
+
   if (cssPreprocessor == "sass") {
-    dependencies.push("sass-loader", "sass");
+    devDependencies.push("sass-loader", "sass");
   }
 
   if (cssPreprocessor == "less") {
-    dependencies.push("less-loader", "less");
+    devDependencies.push("less-loader", "less");
   }
 
   if (cssPreprocessor == "stylus") {
-    dependencies.push("stylus-loader", "stylus");
+    devDependencies.push("stylus-loader", "stylus");
   }
 
   if (styling.includes("css")) {
@@ -95,6 +113,35 @@ const createPackageJson = (answers) => {
       "autoprefixer",
       "mini-css-extract-plugin"
     );
+  }
+  if (linting.includes("prettier")) {
+    devDependencies.push("prettier");
+  }
+
+  if (linting.includes("eslint")) {
+    switch (technology) {
+      case "react":
+        devDependencies.push(
+          "eslint",
+          "eslint-plugin-react",
+          "eslint-plugin-react-hooks"
+        );
+        break;
+      case "vue":
+        devDependencies.push("eslint");
+        break;
+
+      case "svelte":
+        devDependencies.push("eslint");
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  if (linting.includes("prettier") && linting.includes("eslint")) {
+    devDependencies.push("eslint-config-prettier", "eslint-plugin-prettier");
   }
 
   return {
@@ -118,10 +165,13 @@ const createWebpackConfig = (answers) => {
   const ret = ejs.render(str, {
     entry: `./src/index.${extension}`,
     isCSS: styling.includes("css"),
+    isCSSModules: styling.includes("css modules"),
+    technology,
     devServer: technology !== "no",
     htmlWebpackPlugin: technology !== "no",
     extractPlugin: technology !== "no" ? "Only for Production" : "No",
     workboxWebpackPlugin: plugins.includes("workboxWebpackPlugin"),
+    webpackBundleAnalyzer: plugins.includes("webpackBundleAnalyzer"),
     langType: langType,
     isPostCSS: true,
     cssType: cssPreprocessor,
@@ -163,7 +213,7 @@ const createIndex = (answers, stylingExtension) => {
     case "vue":
       return vueIndexTs();
     case "svelte":
-      return svelteIndexJs();
+      return svelteIndexJs(extraImports);
     default:
       return emptyIndexJs(extraImports);
   }
@@ -173,15 +223,50 @@ const createApp = (answers) => {
   const { technology } = answers;
   switch (technology) {
     case "react":
-      return reactAppJs();
+      return ["src/app.js", reactAppJs()];
     case "vue":
-      return vueIndexAppVue();
+      return [
+        "src/app.vue",
+        vueIndexAppVue(getStyleTags(answers).join(""), answers),
+      ];
     case "svelte":
-      return svelteAppSvelte();
+      return [
+        "src/app.svelte",
+        svelteAppSvelte(getStyleTags(answers).join(""), answers),
+      ];
     default:
       break;
   }
   return null;
+};
+
+const createTailwindConfigFile = (answers) => {
+  if (answers.styling.includes("tailwind css")) {
+    const str = fs.readFileSync(
+      path.resolve(__dirname, "../tpl/tailwind.confg.js.tpl"),
+      "utf8"
+    );
+
+    let extension = "js";
+
+    switch (answers.technology) {
+      case "react":
+        extension = "js,jsx,tsx";
+        break;
+      case "vue":
+        extension = "js,vue";
+        break;
+      case "svelte":
+        extension = "js,svelte";
+        break;
+      default:
+        extension = "js";
+    }
+    const ret = ejs.render(str, {
+      extension,
+    });
+    return ret;
+  }
 };
 
 const createBabelConfig = (answers) => {
@@ -206,6 +291,25 @@ const createPostcssConfig = (answers) => {
   return ret;
 };
 
+const createPrettierrcFile = (answers) => {
+  if (answers.linting.includes("prettier")) {
+    return `{"tabWidth": 2, "useTabs": false}`;
+  }
+};
+
+const createEslintrcFile = (answers) => {
+  const isPrettier = answers.linting.includes("prettier");
+  const str = fs.readFileSync(
+    path.resolve(__dirname, "../tpl/eslintrc.json.tpl"),
+    "utf8"
+  );
+  const ret = ejs.render(str, {
+    isPrettier,
+    technology: answers.technology,
+  });
+  return ret;
+};
+
 export const generator = async (answers) => {
   let stylingExtension = "css";
 
@@ -222,7 +326,7 @@ export const generator = async (answers) => {
       stylingExtension = "styl";
       break;
     case "none":
-      stylingExtension = "";
+      stylingExtension = "css";
       break;
     default:
       break;
@@ -238,10 +342,13 @@ export const generator = async (answers) => {
   } = createPackageJson(answers);
   const newWebpackConfig = createWebpackConfig(answers);
   const newBabelConfig = createBabelConfig(answers);
+  const tailwindConfigFile = createTailwindConfigFile(answers);
   const newPostcssConfig = createPostcssConfig(answers);
   const newStyling = createStyling(answers);
   const newIndex = createIndex(answers, stylingExtension);
-  const newApp = createApp(answers);
+  const [newAppFileName, newApp] = createApp(answers);
+  const prettierrcFile = createPrettierrcFile(answers);
+  const eslintrcFile = createEslintrcFile(answers);
 
   const fileMap = {
     "public/index.html": indexHtml,
@@ -250,44 +357,60 @@ export const generator = async (answers) => {
     ".gitignore": gitignore(),
     "package.json": newPackageJson,
     "src/index.js": newIndex,
-    "src/app.js": newApp,
+    [newAppFileName]: newApp,
     [styleFile]: newStyling,
     "postcss.config.js": newPostcssConfig,
     "babel.config.js": newBabelConfig,
+    ".prettierrc": prettierrcFile,
+    ".eslintrc.json": eslintrcFile,
+    "tailwind.config.js": tailwindConfigFile,
   };
+
+  const root = path.resolve(answers.name);
 
   Object.keys(fileMap).forEach((file) => {
     if (fileMap[file]) {
-      fs.outputFileSync(
-        path.resolve(process.cwd() + "/" + file),
-        fileMap[file]
-      );
+      fs.outputFileSync(path.resolve(root + "/" + file), fileMap[file]);
     }
   });
 
-  const devChild = spawn("yarn", ["add", "-D", ...devDependencies], {
-    stdio: "inherit",
-  });
+  const devChild = spawn(
+    "yarn",
+    ["add", "-D", ...devDependencies, "--cwd", root],
+    {
+      stdio: "inherit",
+    }
+  );
   devChild.on("close", (code) => {
     if (code !== 0) {
-      console.log(chalk.yellow(`${dependencies.join(" ")} install cancel.`));
+      console.log(
+        chalk.yellow(`${dependencies.join(" ")}`) + " install cancel."
+      );
       return;
     }
 
-    console.log(chalk.green(`${devDependencies.join(" ")} install success.`));
+    console.log(
+      chalk.cyan(`${devDependencies.join(" ")}`) + " install success."
+    );
     console.log();
     if (dependencies.length > 0) {
-      const child = spawn("yarn", ["add", ...dependencies], {
+      const child = spawn("yarn", ["add", ...dependencies, "--cwd", root], {
         stdio: "inherit",
       });
       child.on("close", (code) => {
         if (code !== 0) {
           console.log(
-            chalk.yellow(`${dependencies.join(" ")} install cancel.`)
+            chalk.yellow(`${dependencies.join(" ")}`) + " install cancel."
           );
           return;
         }
-        console.log(chalk.green(`${dependencies.join(" ")} install success.`));
+        console.log(
+          chalk.cyan(`${dependencies.join(" ")}`) + " install success."
+        );
+        console.log();
+
+        console.log(chalk.green(`cd ${answers.name}`));
+        console.log(chalk.green(`yarn dev`));
         console.log();
       });
     }

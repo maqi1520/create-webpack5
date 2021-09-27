@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import _ from "lodash";
 
 export const css = `h1 {
   color: white;
@@ -26,8 +26,8 @@ h1
   background-color: bg;
 `;
 
-export const tailwindcss = ({ withPostCSS = true }) => {
-  const importKeyword = withPostCSS ? '@tailwind' : '@import';
+export const tailwindcss = (withPostCSS = true) => {
+  const importKeyword = withPostCSS ? "@tailwind" : "@import";
   return `${importKeyword} ${
     withPostCSS ? `base` : `'tailwindcss/dist/base.css'`
   };
@@ -41,23 +41,11 @@ ${importKeyword} ${
   };`;
 };
 
-export const postCssConfig = isTailwindcss => `module.exports = {
-  plugins: [${
-    isTailwindcss
-      ? `
-    require('tailwindcss'),`
-      : ''
-  }
-    require('autoprefixer')
-  ]
-};`;
-
-export function getStyleTags(configItems) {
-  const isCss = _.includes(configItems, 'CSS');
-  const isLess = _.includes(configItems, 'Less');
-  const isSass = _.includes(configItems, 'Sass');
-  const isStylus = _.includes(configItems, 'stylus');
-  const isTailwindCSS = _.includes(configItems, 'Tailwind CSS');
+export function getStyleTags(answers) {
+  const isCss = answers.styling.includes("css");
+  const isLess = answers.cssPreprocessor == "less";
+  const isSass = answers.cssPreprocessor == "sass";
+  const isStylus = answers.cssPreprocessor == "stylus";
   const cssStyle = `<style>
 ${css}
 </style>`;
@@ -70,18 +58,12 @@ ${scss}
   const stylusStyle = `<style lang="styl">
 ${stylus}
 </style>`;
-  const tailwindcssStyle = `<style global>
-  @tailwind base;
-  @tailwind components;
-  @tailwind utilities;
-</style>`;
 
   return _.concat(
     [],
-    isCss && !isTailwindCSS ? cssStyle : [],
+    isCss ? cssStyle : [],
     isSass ? sassStyle : [],
     isLess ? lessStyle : [],
-    isStylus ? stylusStyle : [],
-    isTailwindCSS ? tailwindcssStyle : []
+    isStylus ? stylusStyle : []
   );
 }

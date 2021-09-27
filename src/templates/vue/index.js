@@ -1,4 +1,3 @@
-import _ from "lodash";
 import { joinToString } from "../base";
 
 export const vueIndexTs = (extraImports = []) => `import Vue from 'vue';
@@ -9,30 +8,19 @@ new Vue({
   render: h => h(App),
 });`;
 
-export const vueIndexAppVue = (styling, configItems) => {
-  const isTailwindcss = _.includes(configItems, "Tailwind CSS");
-  const isBootstrap = _.includes(configItems, "Bootstrap");
+export const vueIndexAppVue = (styling, answers) => {
+  const isTailwindcss = answers.styling.includes("tailwind css");
   return `
 <template>
   <div>
     <h1${isTailwindcss ? ' class="text-4xl text-white bg-black"' : ""}>
       {{name}}
-    </h1>${
-      isBootstrap
-        ? `\n    <button type="button" class="btn btn-primary">
-      This is a bootstrap button
-    </button>`
-        : ""
-    }
+    </h1>
   </div>
 </template>
 
 <script lang="ts">
-  import Vue from "vue";${
-    isBootstrap
-      ? `\n  import 'bootstrap';\n  import 'bootstrap/dist/css/bootstrap.min.css';`
-      : ""
-  }
+  import Vue from "vue";
 
   export default Vue.extend({
     data: function() {
